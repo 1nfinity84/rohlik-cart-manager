@@ -1188,11 +1188,6 @@ def get_shopping_lists_route():
                     active_name = matched["name"]
             
             if not active_id:
-                blbosti_list = next((l for l in formatted_lists if l["name"].lower().strip() == "blbosti"), None)
-                if blbosti_list:
-                    active_id = blbosti_list["id"]
-                    active_name = blbosti_list["name"]
-                else:
                     active_id = formatted_lists[0]["id"]
                     active_name = formatted_lists[0]["name"]
             
@@ -1344,11 +1339,7 @@ def get_shopping_list_route():
                     if lid:
                         formatted_lists.append({"id": str(lid), "name": lname})
                 if formatted_lists:
-                    blbosti_list = next((l for l in formatted_lists if l["name"].lower().strip() == "blbosti"), None)
-                    if blbosti_list:
-                        matched_list = blbosti_list
-                    else:
-                        matched_list = formatted_lists[0]
+                    matched_list = formatted_lists[0]
                     active_id = matched_list["id"]
                     active_name = matched_list["name"]
                     config["active_shopping_list_id"] = active_id
@@ -1462,4 +1453,4 @@ if __name__ == '__main__':
     # Read port from environment (can be set in .env file, e.g., PORT=5050)
     port = int(os.getenv("PORT", 5050))
     logger.info(f"Starting Flask server on http://localhost:{port}")
-    app.run(host='0.0.0.0', port=port, debug=True)
+    app.run(host='0.0.0.0', port=port, debug=False)
