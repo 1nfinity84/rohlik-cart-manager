@@ -1,0 +1,1377 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nákupní panel - Rohlík Cart Manager</title>
+    <!-- Google Fonts: Inter & Outfit -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --panel-bg: rgba(17, 24, 39, 0.65);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --primary: #8b5cf6;
+            --primary-hover: #7c3aed;
+            --primary-glow: rgba(139, 92, 246, 0.4);
+            --accent-teal: #14b8a6;
+            --accent-teal-glow: rgba(20, 184, 166, 0.3);
+            --danger: #ef4444;
+            --danger-hover: #dc2626;
+            --success: #10b981;
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(139, 92, 246, 0.1) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(20, 184, 166, 0.08) 0%, transparent 40%);
+            background-attachment: fixed;
+            color: var(--text-main);
+            min-height: 100vh;
+            line-height: 1.4;
+            padding: 0.5rem; /* Compact padding for kiosk view */
+        }
+
+        h1, h2, h3, .brand {
+            font-family: 'Outfit', sans-serif;
+        }
+
+        .container {
+            max-width: 100%;
+            margin: 0;
+            padding: 0;
+        }
+
+        /* Grid Layout: Force 4 columns on mobile, autofill on larger screens */
+        .products-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 0.5rem;
+        }
+
+        @media (min-width: 768px) {
+            .products-grid {
+                grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+                gap: 0.75rem;
+            }
+        }
+
+        /* Fullscreen Image Product Card styling - Square aspect ratio */
+        .product-card {
+            background: #ffffff; /* White background to seamlessly merge with Rohlik product images */
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            cursor: pointer;
+            transition: var(--transition);
+            overflow: hidden;
+            user-select: none;
+            aspect-ratio: 1 / 1;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .product-card:active {
+            transform: scale(0.95);
+        }
+
+        /* 3-second Green Flashing Keyframe Animation */
+        @keyframes flashGreen {
+            0% {
+                border-color: var(--border-color);
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            }
+            10% {
+                border-color: var(--success);
+                box-shadow: 0 0 15px rgba(16, 185, 129, 0.6);
+            }
+            100% {
+                border-color: var(--border-color);
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            }
+        }
+
+        .flash-green {
+            animation: flashGreen 3s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+        }
+
+        /* 3-second Red Flashing Keyframe Animation for failures */
+        @keyframes flashRed {
+            0% {
+                border-color: var(--border-color);
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            }
+            10% {
+                border-color: var(--danger);
+                box-shadow: 0 0 15px rgba(239, 68, 68, 0.6);
+            }
+            100% {
+                border-color: var(--border-color);
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            }
+        }
+
+        .flash-red {
+            animation: flashRed 3s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+        }
+
+        /* Card Image fit */
+        .product-img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain; /* Show the entire product without cropping */
+            background: #ffffff;
+            padding: 6px 6px 36px 6px; /* Leave space at bottom for overlay */
+            transition: transform 0.5s ease;
+        }
+
+        .product-card:hover .product-img {
+            transform: scale(1.03);
+        }
+
+        .product-img-fallback {
+            width: 100%;
+            height: 100%;
+            background: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            color: #cbd5e1;
+            padding-bottom: 36px;
+        }
+
+        /* Bottom overlay with dark slate solid/semi-trans background */
+        .product-card-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(15, 23, 42, 0.95); /* Slate 900 with transparency for high legibility */
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 0.35rem 0.5rem;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between; /* Align name left, badge right */
+            gap: 0.25rem;
+            z-index: 2;
+            pointer-events: none; /* Let clicks pass through to card */
+        }
+
+        .product-name {
+            font-size: 0.68rem;
+            font-weight: 700;
+            color: #fff;
+            text-align: left; /* Left align */
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            line-height: 1.25;
+            margin: 0;
+            flex-grow: 1; /* Take up remaining space */
+        }
+
+        /* Badge for the configured quantity to add (e.g., 1 ks) */
+        .product-qty-badge {
+            background: rgba(255, 255, 255, 0.12);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            padding: 0.1rem 0.35rem;
+            border-radius: 4px;
+            font-size: 0.6rem;
+            font-weight: 800;
+            color: rgba(255, 255, 255, 0.85);
+            flex-shrink: 0; /* Don't shrink */
+        }
+
+        /* Cart Quantity Badge (Real-time in-cart quantity) - Top Right */
+        .cart-qty-badge {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            background: var(--success);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            font-size: 0.68rem;
+            font-weight: 900;
+            min-width: 18px;
+            height: 18px;
+            border-radius: 9px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 8px rgba(16, 185, 129, 0.8);
+            z-index: 3;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            opacity: 0;
+            transform: scale(0.5);
+            padding: 0 4px;
+        }
+
+        .cart-qty-badge.active {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        /* Dot type indicator badge - Top Left */
+        .type-marker {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            z-index: 3;
+        }
+
+        .type-marker.type-history {
+            background-color: var(--accent-teal);
+            box-shadow: 0 0 6px var(--accent-teal);
+        }
+
+        .type-marker.type-fixed {
+            background-color: var(--primary);
+            box-shadow: 0 0 6px var(--primary);
+        }
+
+        /* Loading / Success / Error Spinner Overlay */
+        .card-spinner {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(11, 15, 25, 0.85);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.25s ease;
+            z-index: 10;
+            text-align: center;
+            padding: 0.5rem;
+        }
+
+        .card-spinner.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .card-spinner.success-state {
+            background: rgba(16, 185, 129, 0.95);
+        }
+
+        .card-spinner.error-state {
+            background: rgba(239, 68, 68, 0.95);
+        }
+
+        .spinner-icon {
+            font-size: 1.5rem;
+            color: var(--accent-teal);
+            animation: spin 1s linear infinite;
+            margin-bottom: 0.25rem;
+        }
+
+        .success-icon, .error-icon {
+            font-size: 2rem;
+            color: #fff;
+            margin-bottom: 0.25rem;
+            animation: scaleBounce 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        @keyframes scaleBounce {
+            0% { transform: scale(0.3); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .spinner-text {
+            font-size: 0.6rem;
+            color: #fff;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Floating Status Badge (bottom-left) */
+        .floating-status-badge {
+            position: fixed;
+            bottom: 2rem;
+            left: 2rem;
+            background: rgba(17, 24, 39, 0.85);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid var(--border-color);
+            padding: 0.4rem 0.8rem;
+            border-radius: 9999px;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.75rem;
+            z-index: 100;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            color: var(--text-main);
+        }
+
+        .floating-status-badge strong {
+            color: #fff;
+        }
+
+        /* Floating Admin Gear Button */
+        .floating-admin-btn {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-hover));
+            color: #fff;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            box-shadow: 0 4px 20px var(--primary-glow);
+            cursor: pointer;
+            transition: var(--transition);
+            z-index: 100;
+            text-decoration: none;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .floating-admin-btn:hover {
+            transform: rotate(30deg) scale(1.05);
+            box-shadow: 0 6px 25px rgba(139, 92, 246, 0.6);
+        }
+
+        .floating-admin-btn:active {
+            transform: scale(0.95);
+        }
+
+        /* Empty state */
+        .empty-state {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 6rem 2rem;
+            background: var(--panel-bg);
+            border: 2px dashed rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            color: var(--text-muted);
+        }
+
+        .empty-state i {
+            font-size: 4rem;
+            margin-bottom: 1.5rem;
+            color: rgba(139, 92, 246, 0.3);
+        }
+
+        .empty-state p {
+            margin-bottom: 1rem;
+        }
+
+        /* Toasts alert notification */
+        .toast-container {
+            position: fixed;
+            bottom: 2rem;
+            left: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            z-index: 1000;
+            max-width: 400px;
+        }
+
+        .toast {
+            background: rgba(17, 24, 39, 0.9);
+            border-left: 4px solid var(--primary);
+            backdrop-filter: blur(10px);
+            color: #fff;
+            padding: 1rem 1.25rem;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            opacity: 0;
+            transition: var(--transition);
+        }
+
+        .toast.success {
+            border-left-color: var(--success);
+        }
+
+        .toast.error {
+            border-left-color: var(--danger);
+        }
+
+        .toast-icon {
+            font-size: 1.1rem;
+            margin-top: 0.1rem;
+        }
+
+        .toast.success .toast-icon { color: var(--success); }
+        .toast.error .toast-icon { color: var(--danger); }
+        .toast.info .toast-icon { color: var(--primary); }
+
+        .toast-content {
+            flex-grow: 1;
+        }
+
+        .toast-title {
+            font-weight: 700;
+            font-size: 0.95rem;
+            margin-bottom: 0.15rem;
+        }
+
+        .toast-message {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .toast-close {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 0.1rem;
+        }
+
+        .toast-close:hover {
+            color: #fff;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(-100%) translateY(10px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0) translateY(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideOut {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(-100%);
+                opacity: 0;
+            }
+        }
+
+        /* 3-panel Slider Layout & Tabs styling */
+        body {
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            padding-top: 55px; /* Leave space for sticky header */
+            padding-bottom: 40px; /* Leave space for pagination dots */
+        }
+
+        .container {
+            width: 100%;
+            max-width: 100%;
+            margin: 0;
+            padding: 0;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Sticky Tabs Header */
+        .tabs-header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 50px;
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            z-index: 90;
+            padding: 0 1rem;
+        }
+
+        .tab-item {
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            border: 1px solid transparent;
+        }
+
+        .tab-item i {
+            font-size: 0.95rem;
+        }
+
+        .tab-item.active {
+            color: #fff;
+            background: rgba(139, 92, 246, 0.2);
+            border-color: rgba(139, 92, 246, 0.4);
+            box-shadow: 0 0 10px rgba(139, 92, 246, 0.25);
+        }
+
+        /* Viewport and Slider */
+        .slider-viewport {
+            width: 100%;
+            overflow: hidden;
+            position: relative;
+            flex-grow: 1;
+        }
+
+        .view-slider {
+            display: flex;
+            width: 300%;
+            height: 100%;
+            transform: translateX(-33.3333%);
+            transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+            will-change: transform;
+        }
+
+        .view-slide {
+            width: 33.3333%;
+            padding: 0.25rem 0.5rem;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* Pagination Dots */
+        .pagination-dots {
+            position: fixed;
+            bottom: 8px;
+            left: 0;
+            right: 0;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            z-index: 90;
+            pointer-events: none;
+        }
+
+        .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.25);
+            transition: var(--transition);
+            cursor: pointer;
+            pointer-events: auto;
+        }
+
+        .dot.active {
+            background: var(--primary);
+            box-shadow: 0 0 8px var(--primary);
+            transform: scale(1.25);
+        }
+
+        /* Custom style for plus/minus buttons on cart items */
+        .cart-item-controls {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+            background: rgba(15, 23, 42, 0.95);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            border-radius: 6px;
+            overflow: hidden;
+            flex-shrink: 0;
+            z-index: 5;
+            pointer-events: auto;
+        }
+
+        .cart-control-btn {
+            background: transparent;
+            border: none;
+            color: #fff;
+            width: 26px;
+            height: 26px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .cart-control-btn:active {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .cart-item-qty {
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.75rem;
+            font-weight: 800;
+            color: #fff;
+            min-width: 16px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header with Tabs -->
+    <div class="tabs-header">
+        <div class="tab-item" id="tabCart" onclick="slidePage(0)">
+            <i class="fa-solid fa-basket-shopping"></i> Košík
+        </div>
+        <div class="tab-item active" id="tabPreset" onclick="slidePage(1)">
+            <i class="fa-solid fa-bolt"></i> Rychlý nákup
+        </div>
+        <div class="tab-item" id="tabList" onclick="slidePage(2)">
+            <i class="fa-solid fa-list-check"></i> <span id="shoppingListNameHeader">Nákupní seznam</span>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="slider-viewport">
+            <div class="view-slider" id="viewSlider">
+                <!-- Left Slide: Cart -->
+                <div class="view-slide" id="slideCart">
+                    <div class="products-grid" id="cartGrid">
+                        <div class="empty-state">
+                            <i class="fa-solid fa-basket-shopping"></i>
+                            <p>Načítání košíku...</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Middle Slide: Preset Grid (default) -->
+                <div class="view-slide" id="slidePreset">
+                    <div class="products-grid" id="productsGrid">
+                        <!-- Cards will be populated here -->
+                        <div class="empty-state">
+                            <i class="fa-solid fa-spinner spinner spinner-icon" style="color: var(--primary);"></i>
+                            <p>Načítání nákupního panelu...</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Right Slide: Shopping List -->
+                <div class="view-slide" id="slideList">
+                    <div class="products-grid" id="listGrid">
+                        <div class="empty-state">
+                            <i class="fa-solid fa-list-check"></i>
+                            <p>Načítání nákupního seznamu...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pagination Dots -->
+    <div class="pagination-dots">
+        <div class="dot" id="dot-0" onclick="slidePage(0)"></div>
+        <div class="dot active" id="dot-1" onclick="slidePage(1)"></div>
+        <div class="dot" id="dot-2" onclick="slidePage(2)"></div>
+    </div>
+
+    <!-- Floating status badge (bottom-left) -->
+    <div class="floating-status-badge" id="credBadge">
+        <div class="status-dot" id="statusDot"></div>
+        <span id="statusText">Ověřování přihlášení...</span>
+    </div>
+
+    <!-- Floating settings/admin button (bottom-right) -->
+    <a href="/admin" class="floating-admin-btn" title="Správa šablon">
+        <i class="fa-solid fa-gear"></i>
+    </a>
+
+    <!-- Container for notifications -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script>
+        // Global variables
+        let products = [];
+        let cartItems = [];
+        let shoppingListProducts = [];
+        let currentPageIndex = 1; // 0: Cart, 1: Preset (default), 2: List
+
+        // Swipe gesture detection variables
+        let touchStartX = 0;
+        let touchEndX = 0;
+        let touchStartY = 0;
+        let touchEndY = 0;
+        const swipeMinDistance = 65; // Minimum horizontal swipe distance
+        const swipeMaxCrossDistance = 50; // Maximum vertical cross-axis distance to prevent diagonal swipes
+
+        // On document ready
+        document.addEventListener('DOMContentLoaded', () => {
+            checkCredentials();
+            fetchProducts();
+            
+            // Fetch initial cart data to have it cached
+            fetchCartData();
+            
+            // Poll for cart quantities every 30 minutes
+            setInterval(updateCartQuantities, 1800000);
+
+            // Set up touch swipe listeners
+            const viewport = document.querySelector('.slider-viewport');
+            viewport.addEventListener('touchstart', (e) => {
+                touchStartX = e.changedTouches[0].clientX;
+                touchStartY = e.changedTouches[0].clientY;
+            }, { passive: true });
+
+            viewport.addEventListener('touchend', (e) => {
+                touchEndX = e.changedTouches[0].clientX;
+                touchEndY = e.changedTouches[0].clientY;
+                handleSwipe();
+            }, { passive: true });
+        });
+
+        // Swipe handler
+        function handleSwipe() {
+            const distanceX = touchEndX - touchStartX;
+            const distanceY = touchEndY - touchStartY;
+            
+            if (Math.abs(distanceX) > swipeMinDistance && Math.abs(distanceY) < swipeMaxCrossDistance) {
+                if (distanceX > 0) {
+                    // Swipe right -> Slide left
+                    if (currentPageIndex > 0) {
+                        slidePage(currentPageIndex - 1);
+                    }
+                } else {
+                    // Swipe left -> Slide right
+                    if (currentPageIndex < 2) {
+                        slidePage(currentPageIndex + 1);
+                    }
+                }
+            }
+        }
+
+        // Slide navigation
+        function slidePage(index) {
+            currentPageIndex = index;
+            const slider = document.getElementById('viewSlider');
+            
+            const percent = -index * 33.3333;
+            slider.style.transform = `translateX(${percent}%)`;
+            
+            // Update active tabs
+            const tabs = ['tabCart', 'tabPreset', 'tabList'];
+            tabs.forEach((tabId, idx) => {
+                const tab = document.getElementById(tabId);
+                if (tab) {
+                    if (idx === index) {
+                        tab.classList.add('active');
+                    } else {
+                        tab.classList.remove('active');
+                    }
+                }
+            });
+            
+            // Update pagination dots
+            for (let i = 0; i < 3; i++) {
+                const dot = document.getElementById(`dot-${i}`);
+                if (dot) {
+                    if (i === index) {
+                        dot.classList.add('active');
+                    } else {
+                        dot.classList.remove('active');
+                    }
+                }
+            }
+            
+            // Dynamically load data for selected slide
+            if (index === 0) {
+                fetchCartData();
+            } else if (index === 2) {
+                fetchShoppingList();
+            }
+        }
+
+        // Check Rohlik credentials configuration on backend
+        async function checkCredentials() {
+            try {
+                const response = await fetch('/api/check-credentials');
+                const data = await response.json();
+                
+                const dot = document.getElementById('statusDot');
+                const text = document.getElementById('statusText');
+                
+                if (data.configured) {
+                    dot.classList.add('active');
+                    text.innerHTML = `Přihlášen: <strong>${data.email}</strong>`;
+                } else {
+                    dot.classList.remove('active');
+                    text.innerHTML = `<span style="color: var(--danger); font-weight: 600;">Chyba nastavení (.env)</span>`;
+                    showToast('Chyba nastavení', 'Údaje v souboru .env nejsou správné.', 'error', 10000);
+                }
+            } catch (err) {
+                console.error(err);
+                document.getElementById('statusText').innerText = "Chyba stavu";
+            }
+        }
+
+        // Fetch all products from database
+        async function fetchProducts() {
+            try {
+                const response = await fetch('/api/products');
+                products = await response.json();
+                renderProducts();
+                // Fetch quantities as soon as products are rendered
+                updateCartQuantities();
+            } catch (err) {
+                console.error(err);
+                showToast('Chyba', 'Nepodařilo se načíst produkty.', 'error');
+            }
+        }
+
+        // Fetch current Rohlik cart quantities and update badges
+        async function updateCartQuantities() {
+            try {
+                const response = await fetch('/api/cart');
+                const data = await response.json();
+                
+                if (data.success && data.cart) {
+                    // 1. Update preset cards badges
+                    for (const [prodId, qty] of Object.entries(data.cart)) {
+                        const badge = document.getElementById(`cart-badge-${prodId}`);
+                        if (badge) {
+                            if (qty > 0) {
+                                badge.textContent = qty;
+                                badge.classList.add('active');
+                            } else {
+                                badge.classList.remove('active');
+                            }
+                        }
+                    }
+
+                    // 2. Update shopping list badges using rawCart items
+                    if (data.rawCart) {
+                        const listBadges = document.querySelectorAll('[id^="cart-badge-list-"]');
+                        listBadges.forEach(badge => {
+                            badge.textContent = '0';
+                            badge.classList.remove('active');
+                        });
+                        
+                        data.rawCart.forEach(item => {
+                            const badge = document.getElementById(`cart-badge-list-${item.productId}`);
+                            if (badge) {
+                                badge.textContent = item.quantity;
+                                badge.classList.add('active');
+                            }
+                        });
+                    }
+                }
+            } catch (err) {
+                console.error("Failed to update cart quantities:", err);
+            }
+        }
+
+        // Render products list into touch card grid (Preset Rychly nakup)
+        function renderProducts() {
+            const grid = document.getElementById('productsGrid');
+            grid.innerHTML = '';
+            
+            if (products.length === 0) {
+                grid.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fa-solid fa-basket-shopping"></i>
+                        <p>Panel je prázdný.</p>
+                        <a href="/admin" class="btn btn-primary" style="width: auto; display: inline-flex;">
+                            <i class="fa-solid fa-plus"></i> Přidat první šablonu v administraci
+                        </a>
+                    </div>
+                `;
+                return;
+            }
+            
+            products.forEach(p => {
+                const card = document.createElement('div');
+                card.className = 'product-card';
+                card.id = `card-${p.id}`;
+                card.onclick = () => handleCardClick(p.id);
+                
+                const marker = p.type === 1 
+                    ? `<div class="type-marker type-history" title="Vyhledání v historii"></div>`
+                    : `<div class="type-marker type-fixed" title="Pevné ID produktu"></div>`;
+                
+                let imgHtml = `<div class="product-img-fallback"><i class="fa-solid fa-carrot"></i></div>`;
+                if (p.imageUrl) {
+                    imgHtml = `<img src="${p.imageUrl}" class="product-img" alt="${p.name}" onerror="this.onerror=null; this.outerHTML='<div class=&quot;product-img-fallback&quot;><i class=&quot;fa-solid fa-carrot&quot;></i></div>'">`;
+                }
+                
+                card.innerHTML = `
+                    ${marker}
+                    <div class="cart-qty-badge" id="cart-badge-${p.id}">0</div>
+                    ${imgHtml}
+                    
+                    <div class="product-card-overlay">
+                        <div class="product-name">${p.name}</div>
+                        <div class="product-qty-badge">${p.quantity} ks</div>
+                    </div>
+                    
+                    <div class="card-spinner" id="spinner-${p.id}">
+                        <i class="fa-solid fa-spinner spinner-icon"></i>
+                        <div class="spinner-text">Přidávám...</div>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        // Handle card click (tap-to-add with dynamic states)
+        async function handleCardClick(id) {
+            const card = document.getElementById(`card-${id}`);
+            const spinner = document.getElementById(`spinner-${id}`);
+            
+            card.classList.remove('flash-green', 'flash-red');
+            
+            spinner.innerHTML = `
+                <i class="fa-solid fa-spinner spinner-icon"></i>
+                <div class="spinner-text">Přidávám...</div>
+            `;
+            spinner.className = 'card-spinner active';
+            
+            const product = products.find(p => p.id === id);
+            const pName = product ? product.name : 'Produkt';
+            
+            try {
+                const response = await fetch(`/api/add-to-cart/${id}`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    void card.offsetWidth; 
+                    card.classList.add('flash-green');
+                    
+                    spinner.innerHTML = `
+                        <i class="fa-solid fa-circle-check success-icon"></i>
+                        <div class="spinner-text">Přidáno!</div>
+                    `;
+                    spinner.className = 'card-spinner active success-state';
+                    
+                    showToast(
+                        'Přidáno do košíku!', 
+                        `Úspěšně přidáno: ${product.quantity}x "${data.matchedName || pName}"`, 
+                        'success', 
+                        4500
+                    );
+                    
+                    updateCartQuantities();
+                    fetchCartData(); // Refresh cart list silently in background
+                    
+                    setTimeout(() => {
+                        spinner.classList.remove('active');
+                    }, 1500);
+                } else {
+                    void card.offsetWidth; 
+                    card.classList.add('flash-red');
+                    
+                    spinner.innerHTML = `
+                        <i class="fa-solid fa-triangle-exclamation error-icon"></i>
+                        <div class="spinner-text">Chyba</div>
+                    `;
+                    spinner.className = 'card-spinner active error-state';
+                    
+                    showToast(
+                        'Přidání selhalo', 
+                        data.error || 'Došlo k neznámé chybě na straně MCP serveru.', 
+                        'error', 
+                        8000
+                    );
+                    
+                    setTimeout(() => {
+                        spinner.classList.remove('active');
+                    }, 2500);
+                }
+            } catch (err) {
+                console.error(err);
+                void card.offsetWidth; 
+                card.classList.add('flash-red');
+                
+                spinner.innerHTML = `
+                    <i class="fa-solid fa-triangle-exclamation error-icon"></i>
+                    <div class="spinner-text">Chyba spojení</div>
+                `;
+                spinner.className = 'card-spinner active error-state';
+                
+                showToast('Chyba spojení', 'Nepodařilo se kontaktovat server.', 'error', 6000);
+                
+                setTimeout(() => {
+                    spinner.classList.remove('active');
+                }, 2500);
+            }
+        }
+
+        // Fetch Shopping List detail
+        async function fetchShoppingList() {
+            try {
+                const response = await fetch('/api/shopping-list');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const headerSpan = document.getElementById('shoppingListNameHeader');
+                    if (headerSpan) {
+                        headerSpan.textContent = data.name;
+                    }
+                    
+                    shoppingListProducts = data.products || [];
+                    renderShoppingList();
+                    updateCartQuantities();
+                } else {
+                    showToast('Nákupní seznam', data.error || 'Nepodařilo se načíst seznam.', 'error');
+                }
+            } catch (err) {
+                console.error(err);
+                showToast('Chyba', 'Chyba připojení při načítání nákupního seznamu.', 'error');
+            }
+        }
+
+        // Render Shopping List products
+        function renderShoppingList() {
+            const grid = document.getElementById('listGrid');
+            grid.innerHTML = '';
+            
+            if (shoppingListProducts.length === 0) {
+                grid.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fa-solid fa-list-check"></i>
+                        <p>Nákupní seznam je prázdný nebo neobsahuje položky.</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            shoppingListProducts.forEach(p => {
+                const card = document.createElement('div');
+                card.className = 'product-card';
+                card.id = `card-list-${p.productId}`;
+                card.onclick = () => handleListCardClick(p.productId, p.name, 1);
+                
+                const marker = `<div class="type-marker type-fixed" title="ID z nákupního seznamu"></div>`;
+                
+                let imgHtml = `<div class="product-img-fallback"><i class="fa-solid fa-carrot"></i></div>`;
+                if (p.imageUrl) {
+                    imgHtml = `<img src="${p.imageUrl}" class="product-img" alt="${p.name}" onerror="this.onerror=null; this.outerHTML='<div class=&quot;product-img-fallback&quot;><i class=&quot;fa-solid fa-carrot&quot;></i></div>'">`;
+                }
+                
+                card.innerHTML = `
+                    ${marker}
+                    <div class="cart-qty-badge" id="cart-badge-list-${p.productId}">0</div>
+                    ${imgHtml}
+                    
+                    <div class="product-card-overlay">
+                        <div class="product-name">${p.name}</div>
+                        <div class="product-qty-badge">${p.quantity} ks</div>
+                    </div>
+                    
+                    <div class="card-spinner" id="spinner-list-${p.productId}">
+                        <i class="fa-solid fa-spinner spinner-icon"></i>
+                        <div class="spinner-text">Přidávám...</div>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        // Handle card click on shopping list items
+        async function handleListCardClick(productId, name, qtyToAdd) {
+            const card = document.getElementById(`card-list-${productId}`);
+            const spinner = document.getElementById(`spinner-list-${productId}`);
+            
+            card.classList.remove('flash-green', 'flash-red');
+            
+            spinner.innerHTML = `
+                <i class="fa-solid fa-spinner spinner-icon"></i>
+                <div class="spinner-text">Přidávám...</div>
+            `;
+            spinner.className = 'card-spinner active';
+            
+            try {
+                const response = await fetch(`/api/add-to-cart/${productId}?quantity=${qtyToAdd}`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    void card.offsetWidth;
+                    card.classList.add('flash-green');
+                    
+                    spinner.innerHTML = `
+                        <i class="fa-solid fa-circle-check success-icon"></i>
+                        <div class="spinner-text">Přidáno!</div>
+                    `;
+                    spinner.className = 'card-spinner active success-state';
+                    
+                    showToast(
+                        'Přidáno do košíku!', 
+                        `Úspěšně přidáno: ${qtyToAdd}x "${name}"`, 
+                        'success', 
+                        4500
+                    );
+                    
+                    updateCartQuantities();
+                    fetchCartData(); // Refresh cart list silently in background
+                    
+                    setTimeout(() => {
+                        spinner.classList.remove('active');
+                    }, 1500);
+                } else {
+                    void card.offsetWidth;
+                    card.classList.add('flash-red');
+                    
+                    spinner.innerHTML = `
+                        <i class="fa-solid fa-triangle-exclamation error-icon"></i>
+                        <div class="spinner-text">Chyba</div>
+                    `;
+                    spinner.className = 'card-spinner active error-state';
+                    
+                    showToast(
+                        'Přidání selhalo', 
+                        data.error || 'Položku se nepodařilo přidat.', 
+                        'error', 
+                        8000
+                    );
+                    
+                    setTimeout(() => {
+                        spinner.classList.remove('active');
+                    }, 2500);
+                }
+            } catch (err) {
+                console.error(err);
+                void card.offsetWidth;
+                card.classList.add('flash-red');
+                
+                spinner.innerHTML = `
+                    <i class="fa-solid fa-triangle-exclamation error-icon"></i>
+                    <div class="spinner-text">Chyba spojení</div>
+                `;
+                spinner.className = 'card-spinner active error-state';
+                
+                showToast('Chyba spojení', 'Nepodařilo se kontaktovat server.', 'error', 6000);
+                
+                setTimeout(() => {
+                    spinner.classList.remove('active');
+                }, 2500);
+            }
+        }
+
+        // Fetch Cart details
+        async function fetchCartData() {
+            try {
+                const response = await fetch('/api/cart');
+                const data = await response.json();
+                
+                if (data.success && data.rawCart) {
+                    cartItems = data.rawCart;
+                    renderCart();
+                }
+            } catch (err) {
+                console.error("Failed to fetch cart details:", err);
+            }
+        }
+
+        // Render Cart products
+        function renderCart() {
+            const grid = document.getElementById('cartGrid');
+            grid.innerHTML = '';
+            
+            if (cartItems.length === 0) {
+                grid.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fa-solid fa-basket-shopping"></i>
+                        <p>Košík je prázdný.</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            cartItems.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'product-card';
+                card.id = `card-cart-${item.productId}`;
+                
+                const imgUrl = item.imageUrl || `https://www.rohlik.cz/cdn-cgi/image/f=auto,w=300,h=300/https://cdn.rohlik.cz/images/grocery/products/${item.productId}/${item.productId}-1.jpg`;
+                
+                const imgHtml = `<img src="${imgUrl}" class="product-img" alt="${item.name}" onerror="this.onerror=null; this.outerHTML='<div class=&quot;product-img-fallback&quot;><i class=&quot;fa-solid fa-carrot&quot;></i></div>'">`;
+                
+                card.innerHTML = `
+                    <div class="cart-qty-badge active">${item.quantity}</div>
+                    ${imgHtml}
+                    
+                    <div class="product-card-overlay">
+                        <div class="product-name">${item.name}</div>
+                        <div class="cart-item-controls">
+                            <button class="cart-control-btn" onclick="updateCartItemQuantity('${item.productId}', ${item.quantity - 1}, '${item.orderFieldId}', event)">
+                                <i class="fa-solid fa-minus"></i>
+                            </button>
+                            <span class="cart-item-qty">${item.quantity}</span>
+                            <button class="cart-control-btn" onclick="updateCartItemQuantity('${item.productId}', ${item.quantity + 1}, '${item.orderFieldId}', event)">
+                                <i class="fa-solid fa-plus"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="card-spinner" id="spinner-cart-${item.productId}">
+                        <i class="fa-solid fa-spinner spinner-icon"></i>
+                        <div class="spinner-text">Aktualizuji...</div>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        // Update cart quantity (+ / - / delete)
+        async function updateCartItemQuantity(productId, newQty, orderFieldId, event) {
+            if (event) {
+                event.stopPropagation();
+            }
+            
+            const spinner = document.getElementById(`spinner-cart-${productId}`);
+            const card = document.getElementById(`card-cart-${productId}`);
+            
+            card.classList.remove('flash-green', 'flash-red');
+            
+            spinner.innerHTML = `
+                <i class="fa-solid fa-spinner spinner-icon"></i>
+                <div class="spinner-text">Aktualizuji...</div>
+            `;
+            spinner.className = 'card-spinner active';
+            
+            try {
+                const response = await fetch('/api/cart/set-quantity', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        productId: productId,
+                        quantity: newQty,
+                        orderFieldId: orderFieldId
+                    })
+                });
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    void card.offsetWidth;
+                    card.classList.add('flash-green');
+                    
+                    spinner.innerHTML = `
+                        <i class="fa-solid fa-circle-check success-icon"></i>
+                        <div class="spinner-text">Upraveno!</div>
+                    `;
+                    spinner.className = 'card-spinner active success-state';
+                    
+                    await fetchCartData();
+                    updateCartQuantities();
+                    
+                    setTimeout(() => {
+                        spinner.classList.remove('active');
+                    }, 1000);
+                } else {
+                    void card.offsetWidth;
+                    card.classList.add('flash-red');
+                    
+                    spinner.innerHTML = `
+                        <i class="fa-solid fa-triangle-exclamation error-icon"></i>
+                        <div class="spinner-text">Chyba</div>
+                    `;
+                    spinner.className = 'card-spinner active error-state';
+                    
+                    showToast('Aktualizace selhala', data.error || 'Nepodařilo se upravit množství.', 'error');
+                    
+                    setTimeout(() => {
+                        spinner.classList.remove('active');
+                    }, 2500);
+                }
+            } catch (err) {
+                console.error(err);
+                void card.offsetWidth;
+                card.classList.add('flash-red');
+                
+                spinner.innerHTML = `
+                    <i class="fa-solid fa-triangle-exclamation error-icon"></i>
+                    <div class="spinner-text">Chyba spojení</div>
+                `;
+                spinner.className = 'card-spinner active error-state';
+                
+                showToast('Chyba spojení', 'Nepodařilo se kontaktovat server.', 'error');
+                
+                setTimeout(() => {
+                    spinner.classList.remove('active');
+                }, 2500);
+            }
+        }
+
+        // Toast notifications logic
+        function showToast(title, message, type = 'info', duration = 5000) {
+            const container = document.getElementById('toastContainer');
+            
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            
+            let iconClass = 'fa-circle-info';
+            if (type === 'success') iconClass = 'fa-circle-check';
+            if (type === 'error') iconClass = 'fa-triangle-exclamation';
+            
+            toast.innerHTML = `
+                <i class="fa-solid ${iconClass} toast-icon"></i>
+                <div class="toast-content">
+                    <div class="toast-title">${title}</div>
+                    <div class="toast-message">${message}</div>
+                </div>
+                <button class="toast-close" onclick="this.parentElement.remove()">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            `;
+            
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.animation = 'slideOut 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards';
+                setTimeout(() => {
+                    toast.remove();
+                }, 300);
+            }, duration);
+        }
+    </script>
+</body>
+</html>

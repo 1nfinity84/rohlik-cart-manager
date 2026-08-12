@@ -1,0 +1,47 @@
+[
+  {
+    "id": "5d5f0e23-1943-4273-833d-cd1009c42b60",
+    "name": "Mléko",
+    "type": 1,
+    "searchTerm": "mléko",
+    "productId": "",
+    "imageUrl": "https://www.rohlik.cz/cdn-cgi/image/f=auto,w=300,h=300/https://cdn.rohlik.cz/images/grocery/products/1441840/1441840-1686756540649.jpg",
+    "quantity": 1
+  },
+  {
+    "id": "1ce39c18-f9a1-42b3-be20-7a0d103be320",
+    "name": "Česnek",
+    "type": 1,
+    "searchTerm": "Česnek",
+    "productId": "",
+    "imageUrl": "https://www.rohlik.cz/cdn-cgi/image/f=auto,w=300,h=300/https://cdn.rohlik.cz/images/grocery/products/8791/f4/1293225-1427460220.jpg",
+    "quantity": 1
+  },
+  {
+    "id": "6aac11fa-90ca-4ff3-8cdb-edc05489b809",
+    "name": "Okurka hadovka",
+    "type": 1,
+    "searchTerm": "hadovka",
+    "productId": "",
+    "imageUrl": "https://www.rohlik.cz/cdn-cgi/image/f=auto,w=300,h=300/https://cdn.rohlik.cz/images/grocery/products/1294559/1294559-1599144049.jpg",
+    "quantity": 1
+  },
+  {
+    "id": "5c15eb42-0661-4cc0-a733-5eb579606487",
+    "name": "Máslo",
+    "type": 1,
+    "searchTerm": "máslo",
+    "productId": "",
+    "imageUrl": "https://www.rohlik.cz/cdn-cgi/image/f=auto,w=300,h=300/https://cdn.rohlik.cz/images/grocery/products/1462148/1462148-1722952177279.jpg",
+    "quantity": 1
+  },
+  {
+    "id": "c80e6b45-764e-4a6c-ad56-f67aa136afc5",
+    "name": "Kitchin Mouka polohrubá",
+    "type": 2,
+    "searchTerm": "",
+    "productId": "1480973",
+    "imageUrl": "https://www.rohlik.cz/cdn-cgi/image/f=auto,w=1200,h=630,fit=cover/https://cdn.rohlik.cz/images/grocery/products/1480973/1480973-1776674786604902108.jpg",
+    "quantity": 1
+  }
+]

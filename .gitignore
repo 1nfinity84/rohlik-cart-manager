@@ -1,0 +1,25 @@
+# Environments
+.env
+.session_cookies
+
+# Python caching
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual Environments
+venv/
+.venv/
+env/
+
+# IDE configs
+.vscode/
+.idea/
+
+# Local databases / user data (volitelné)
+# products.json
+
+# OS files
+.DS_Store
+Thumbs.db

@@ -1,0 +1,1085 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Administrace - Rohlík Cart Manager</title>
+    <!-- Google Fonts: Inter & Outfit -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --panel-bg: rgba(17, 24, 39, 0.65);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --primary: #8b5cf6;
+            --primary-hover: #7c3aed;
+            --primary-glow: rgba(139, 92, 246, 0.4);
+            --accent-teal: #14b8a6;
+            --accent-teal-glow: rgba(20, 184, 166, 0.3);
+            --danger: #ef4444;
+            --danger-hover: #dc2626;
+            --success: #10b981;
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(139, 92, 246, 0.12) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(20, 184, 166, 0.08) 0%, transparent 40%);
+            background-attachment: fixed;
+            color: var(--text-main);
+            min-height: 100vh;
+            line-height: 1.5;
+            padding-bottom: 3rem;
+        }
+
+        h1, h2, h3, .brand {
+            font-family: 'Outfit', sans-serif;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 2rem;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 2.5rem;
+        }
+
+        .brand-container {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .brand-logo {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, var(--primary), var(--accent-teal));
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            color: #fff;
+            box-shadow: 0 0 20px var(--primary-glow);
+        }
+
+        .brand-title {
+            font-size: 1.75rem;
+            font-weight: 800;
+            background: linear-gradient(to right, #ffffff, #d1d5db);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .brand-subtitle {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        /* Credentials Badge */
+        .cred-badge {
+            background: rgba(31, 41, 55, 0.6);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border-color);
+            padding: 0.5rem 1rem;
+            border-radius: 9999px;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: var(--danger);
+            box-shadow: 0 0 10px var(--danger);
+        }
+
+        .status-dot.active {
+            background-color: var(--success);
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.6);
+        }
+
+        .cred-text {
+            color: var(--text-muted);
+        }
+
+        .cred-text strong {
+            color: var(--text-main);
+        }
+
+        /* Dashboard Grid Layout */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 380px 1fr;
+            gap: 2rem;
+            align-items: start;
+        }
+
+        @media (max-width: 968px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .glass-panel {
+            background: var(--panel-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+        }
+
+        .panel-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: #fff;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.75rem;
+        }
+
+        /* Forms Styling */
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            margin-bottom: 0.5rem;
+        }
+
+        .form-control {
+            width: 100%;
+            background: rgba(31, 41, 55, 0.5);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 0.95rem;
+            transition: var(--transition);
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 8px var(--primary-glow);
+            background: rgba(31, 41, 55, 0.7);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        /* Custom Toggle Switch buttons for Type selection */
+        .type-selector {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+            background: rgba(31, 41, 55, 0.5);
+            padding: 0.25rem;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            margin-bottom: 1.25rem;
+        }
+
+        .type-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            padding: 0.6rem;
+            font-size: 0.85rem;
+            font-weight: 600;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .type-btn.active {
+            background: var(--primary);
+            color: #fff;
+            box-shadow: 0 4px 10px rgba(139, 92, 246, 0.3);
+        }
+
+        .type-btn:hover:not(.active) {
+            color: var(--text-main);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        /* Buttons styling */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.25rem;
+            font-weight: 600;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-family: inherit;
+            transition: var(--transition);
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), #a78bfa);
+            color: #fff;
+            width: 100%;
+            box-shadow: 0 4px 14px var(--primary-glow);
+        }
+
+        .btn-primary:hover {
+            box-shadow: 0 6px 20px rgba(139, 92, 246, 0.5);
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: var(--text-muted);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-secondary:hover {
+            color: var(--text-main);
+            border-color: var(--text-muted);
+        }
+
+        .btn-back {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-main);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-back:hover {
+            background: var(--primary);
+            border-color: transparent;
+            color: #fff;
+            box-shadow: 0 0 15px var(--primary-glow);
+        }
+
+        /* Admin Product List Table/List view */
+        .admin-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .admin-item {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1rem 1.25rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: var(--transition);
+        }
+
+        .admin-item:hover {
+            border-color: rgba(139, 92, 246, 0.25);
+            background: rgba(17, 24, 39, 0.85);
+        }
+
+        .item-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            flex-grow: 1;
+        }
+
+        .item-img {
+            width: 50px;
+            height: 50px;
+            border-radius: 8px;
+            object-fit: cover;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            color: var(--text-muted);
+        }
+
+        .item-details {
+            display: flex;
+            flex-direction: column;
+            gap: 0.15rem;
+        }
+
+        .item-name {
+            font-weight: 700;
+            color: #fff;
+            font-size: 1rem;
+        }
+
+        .item-meta {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            display: flex;
+            gap: 0.75rem;
+        }
+
+        .item-meta strong {
+            color: var(--text-main);
+        }
+
+        .badge {
+            display: inline-block;
+            font-size: 0.65rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            padding: 0.15rem 0.4rem;
+            border-radius: 9999px;
+            letter-spacing: 0.05em;
+        }
+
+        .badge-history {
+            background: rgba(20, 184, 166, 0.15);
+            color: var(--accent-teal);
+            border: 1px solid rgba(20, 184, 166, 0.25);
+        }
+
+        .badge-fixed {
+            background: rgba(139, 92, 246, 0.15);
+            color: #a78bfa;
+            border: 1px solid rgba(139, 92, 246, 0.25);
+        }
+
+        .item-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .action-btn {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border-color);
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 0.5rem 0.75rem;
+            font-size: 0.85rem;
+            font-weight: 600;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+            transition: var(--transition);
+        }
+
+        .action-btn:hover {
+            color: #fff;
+            background: rgba(255, 255, 255, 0.08);
+            border-color: var(--text-muted);
+        }
+
+        .action-btn.delete-btn:hover {
+            color: #fff;
+            background: var(--danger);
+            border-color: transparent;
+            box-shadow: 0 0 10px rgba(239, 68, 68, 0.3);
+        }
+
+        /* Empty state */
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            background: var(--panel-bg);
+            border: 2px dashed rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            color: var(--text-muted);
+        }
+
+        .empty-state i {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            color: rgba(139, 92, 246, 0.3);
+        }
+
+        .spinner {
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Toasts alert notification */
+        .toast-container {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            z-index: 1000;
+            max-width: 400px;
+        }
+
+        .toast {
+            background: rgba(17, 24, 39, 0.9);
+            border-left: 4px solid var(--primary);
+            backdrop-filter: blur(10px);
+            color: #fff;
+            padding: 1rem 1.25rem;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            opacity: 0;
+            transition: var(--transition);
+        }
+
+        .toast.success {
+            border-left-color: var(--success);
+        }
+
+        .toast.error {
+            border-left-color: var(--danger);
+        }
+
+        .toast-icon {
+            font-size: 1.1rem;
+            margin-top: 0.1rem;
+        }
+
+        .toast.success .toast-icon { color: var(--success); }
+        .toast.error .toast-icon { color: var(--danger); }
+        .toast.info .toast-icon { color: var(--primary); }
+
+        .toast-content {
+            flex-grow: 1;
+        }
+
+        .toast-title {
+            font-weight: 700;
+            font-size: 0.95rem;
+            margin-bottom: 0.15rem;
+        }
+
+        .toast-message {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .toast-close {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 0.1rem;
+        }
+
+        .toast-close:hover {
+            color: #fff;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%) translateY(10px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0) translateY(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideOut {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <!-- Header -->
+        <header>
+            <div class="brand-container">
+                <div class="brand-logo">
+                    <i class="fa-solid fa-sliders"></i>
+                </div>
+                <div>
+                    <h1 class="brand-title">Administrace šablon</h1>
+                    <div class="brand-subtitle">Přidávejte, upravujte a spravujte šablony nákupu</div>
+                </div>
+            </div>
+            
+            <div class="header-actions">
+                <a href="/" class="btn btn-back">
+                    <i class="fa-solid fa-arrow-left"></i> Zpět na nákup
+                </a>
+                
+                <div class="cred-badge" id="credBadge">
+                    <div class="status-dot" id="statusDot"></div>
+                    <span class="cred-text" id="statusText">Ověřování přihlášení...</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Dashboard Layout -->
+        <div class="dashboard-grid">
+            <!-- Left Side: Panels -->
+            <div style="display: flex; flex-direction: column; gap: 2rem;">
+                <!-- Form Panel -->
+                <div class="glass-panel">
+                    <h2 class="panel-title" id="formPanelTitle">
+                        <i class="fa-solid fa-circle-plus"></i> Nová šablona nákupu
+                    </h2>
+                    
+                    <form id="productForm">
+                        <!-- ID placeholder for editing -->
+                        <input type="hidden" id="editProductId" value="">
+                        
+                        <div class="form-group">
+                            <label class="form-label">Způsob přidání</label>
+                            <div class="type-selector">
+                                <button type="button" class="type-btn active" id="typeHistoryBtn" onclick="selectType(1)">
+                                    <i class="fa-solid fa-history"></i> Z historie (1)
+                                </button>
+                                <button type="button" class="type-btn" id="typeFixedBtn" onclick="selectType(2)">
+                                    <i class="fa-solid fa-tag"></i> Pevný produkt (2)
+                                </button>
+                            </div>
+                            <input type="hidden" id="productType" name="type" value="1">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="productName" class="form-label">Lidské jméno (zobrazí se zde)</label>
+                            <input type="text" id="productName" class="form-control" placeholder="Např. Párky Dacello (nepovinné)">
+                            <small style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem; display: block;">
+                                U pevného produktu můžete nechat prázdné – název se automaticky načte z Rohlíku.
+                            </small>
+                        </div>
+
+                        <!-- Dynamic field for Type 1 -->
+                        <div class="form-group" id="searchTermGroup">
+                            <label for="searchTerm" class="form-label">Hledaný výraz v historii</label>
+                            <input type="text" id="searchTerm" class="form-control" placeholder="Např. parky dacello">
+                            <small style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem; display: block;">
+                                Skript vyhledá poslední zakoupenou položku v historii odpovídající tomuto textu. Obrázek se pokusí stáhnout z veřejného vyhledávání Rohlíku.
+                            </small>
+                        </div>
+
+                        <!-- Dynamic field for Type 2 -->
+                        <div class="form-group" id="productIdGroup" style="display: none;">
+                            <label for="productId" class="form-label">URL adresa nebo ID produktu z Rohlík.cz</label>
+                            <input type="text" id="productId" class="form-control" placeholder="Např. https://www.rohlik.cz/1431713-dacello...">
+                            <small style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem; display: block;">
+                                Můžete zadat celé **URL produktu** (např. <code>rohlik.cz/1431713-nejaky-produkt</code>) nebo jen samotné **ID** (např. <code>1431713</code>). Data a obrázek se stáhnou automaticky.
+                            </small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="imageUrl" class="form-label">URL obrázku (nepovinné)</label>
+                            <input type="text" id="imageUrl" class="form-control" placeholder="https://cdn.rohlik.cz/images/...">
+                            <small style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem; display: block;">
+                                Ponechte prázdné pro automatické stažení z Rohlíku, nebo vložte vlastní odkaz na obrázek.
+                            </small>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="quantity" class="form-label">Množství</label>
+                                <input type="number" id="quantity" class="form-control" value="1" min="1" required>
+                            </div>
+                            <div class="form-group" style="display: flex; align-items: flex-end;">
+                                <button type="submit" class="btn btn-primary" id="submitBtn">
+                                    <i class="fa-solid fa-save"></i> Uložit šablonu
+                                </button>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-secondary" id="cancelEditBtn" style="display: none; width: 100%; margin-top: 0.5rem;" onclick="resetForm()">
+                            Zrušit úpravy
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Active Shopping List Panel -->
+                <div class="glass-panel">
+                    <h2 class="panel-title">
+                        <i class="fa-solid fa-list-check"></i> Aktivní nákupní seznam
+                    </h2>
+                    <div class="form-group">
+                        <label for="activeListSelect" class="form-label">Vyberte nákupní seznam z Rohlíku</label>
+                        <select id="activeListSelect" class="form-control" onchange="changeActiveShoppingList()">
+                            <option value="">Načítání seznamů...</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label for="activeListNameInput" class="form-label">Název seznamu (ruční zadání/vyhledání)</label>
+                        <input type="text" id="activeListNameInput" class="form-control" placeholder="Např. Blbosti" onchange="changeActiveShoppingListName()">
+                        <small style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.75rem; display: block;">
+                            Můžete vybrat seznam z nabídky výše nebo přímo zadat/přepsat jeho název zde a potvrdit.
+                        </small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Side: Products List -->
+            <div>
+                <h2 class="panel-title" style="border: none; margin-bottom: 1rem;">
+                    <i class="fa-solid fa-list-ul"></i> Aktuální seznam šablon
+                </h2>
+                
+                <div class="admin-list" id="productsList">
+                    <!-- Products will be populated here -->
+                    <div class="empty-state">
+                        <i class="fa-solid fa-spinner spinner"></i>
+                        <p>Načítání produktů...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Container for notifications -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script>
+        // Global variables
+        let products = [];
+        let isEditing = false;
+        let shoppingLists = [];
+        let activeListId = "";
+
+        // On document ready
+        document.addEventListener('DOMContentLoaded', () => {
+            checkCredentials();
+            fetchProducts();
+            fetchShoppingLists();
+            
+            // Form submit handler
+            document.getElementById('productForm').addEventListener('submit', handleFormSubmit);
+        });
+
+        // Check Rohlik credentials configuration on backend
+        async function checkCredentials() {
+            try {
+                const response = await fetch('/api/check-credentials');
+                const data = await response.json();
+                
+                const dot = document.getElementById('statusDot');
+                const text = document.getElementById('statusText');
+                
+                if (data.configured) {
+                    dot.classList.add('active');
+                    text.innerHTML = `Přihlášen: <strong>${data.email}</strong>`;
+                } else {
+                    dot.classList.remove('active');
+                    text.innerHTML = `<span style="color: var(--danger); font-weight: 600;">Odhlášeno</span>`;
+                }
+            } catch (err) {
+                console.error(err);
+                document.getElementById('statusText').innerText = "Chyba stavu";
+            }
+        }
+
+        // Toggle form types
+        function selectType(typeNum) {
+            document.getElementById('productType').value = typeNum;
+            
+            const historyBtn = document.getElementById('typeHistoryBtn');
+            const fixedBtn = document.getElementById('typeFixedBtn');
+            const searchGroup = document.getElementById('searchTermGroup');
+            const idGroup = document.getElementById('productIdGroup');
+            
+            if (typeNum === 1) {
+                historyBtn.classList.add('active');
+                fixedBtn.classList.remove('active');
+                searchGroup.style.display = 'block';
+                idGroup.style.display = 'none';
+                document.getElementById('searchTerm').required = true;
+                document.getElementById('productId').required = false;
+            } else {
+                historyBtn.classList.remove('active');
+                fixedBtn.classList.add('active');
+                searchGroup.style.display = 'none';
+                idGroup.style.display = 'block';
+                document.getElementById('searchTerm').required = false;
+                document.getElementById('productId').required = true;
+            }
+        }
+
+        // Fetch all products from JSON file database
+        async function fetchProducts() {
+            try {
+                const response = await fetch('/api/products');
+                products = await response.json();
+                renderProducts();
+            } catch (err) {
+                console.error(err);
+                showToast('Chyba', 'Nepodařilo se načíst seznam produktů.', 'error');
+            }
+        }
+
+        // Render products list into items
+        function renderProducts() {
+            const list = document.getElementById('productsList');
+            list.innerHTML = '';
+            
+            if (products.length === 0) {
+                list.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fa-solid fa-basket-shopping"></i>
+                        <p>Zatím zde nejsou žádné šablony.</p>
+                        <p style="font-size: 0.85rem; margin-top: 0.5rem; color: var(--text-muted);">
+                            Použijte formulář vlevo pro vytvoření první šablony.
+                        </p>
+                    </div>
+                `;
+                return;
+            }
+            
+            products.forEach(p => {
+                const item = document.createElement('div');
+                item.className = 'admin-item';
+                
+                const typeBadge = p.type === 1 
+                    ? `<span class="badge badge-history"><i class="fa-solid fa-history"></i> Historie</span>` 
+                    : `<span class="badge badge-fixed"><i class="fa-solid fa-tag"></i> Pevné ID</span>`;
+                    
+                const metaDetails = p.type === 1
+                    ? `<span>Hledat: <strong>"${p.searchTerm}"</strong></span>`
+                    : `<span>ID produktu: <strong>#${p.productId}</strong></span>`;
+                
+                // Construct product image thumbnail
+                let imgHtml = `<div class="item-img"><i class="fa-solid fa-carrot"></i></div>`;
+                if (p.imageUrl) {
+                    imgHtml = `<img src="${p.imageUrl}" class="item-img" alt="${p.name}" onerror="this.onerror=null; this.outerHTML='<div class=&quot;item-img&quot;><i class=&quot;fa-solid fa-carrot&quot;></i></div>'">`;
+                }
+                    
+                item.innerHTML = `
+                    <div class="item-info">
+                        ${imgHtml}
+                        <div class="item-details">
+                            <div class="item-name">${p.name}</div>
+                            <div class="item-meta">
+                                ${typeBadge}
+                                ${metaDetails}
+                                <span>Množství: <strong>${p.quantity} ks</strong></span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="item-actions">
+                        <button class="action-btn" onclick="startEdit('${p.id}')">
+                            <i class="fa-solid fa-pen-to-square"></i> Upravit
+                        </button>
+                        <button class="action-btn delete-btn" onclick="deleteProduct('${p.id}')">
+                            <i class="fa-solid fa-trash-can"></i> Smazat
+                        </button>
+                    </div>
+                `;
+                list.appendChild(item);
+            });
+        }
+
+        // Handle Add/Edit form submissions
+        async function handleFormSubmit(e) {
+            e.preventDefault();
+            
+            const submitButton = document.getElementById('submitBtn');
+            const originalBtnHtml = submitButton.innerHTML;
+            
+            const editId = document.getElementById('editProductId').value;
+            const name = document.getElementById('productName').value;
+            const type = parseInt(document.getElementById('productType').value);
+            const searchTerm = document.getElementById('searchTerm').value;
+            const productId = document.getElementById('productId').value;
+            const imageUrl = document.getElementById('imageUrl').value;
+            const quantity = parseInt(document.getElementById('quantity').value);
+            
+            const payload = {
+                name,
+                type,
+                searchTerm: type === 1 ? searchTerm : "",
+                productId: type === 2 ? productId : "",
+                imageUrl,
+                quantity
+            };
+            
+            // Set saving state (which includes scraping, so it might take a moment)
+            submitButton.disabled = true;
+            submitButton.innerHTML = `<i class="fa-solid fa-spinner spinner"></i> Ukládám & Scrapuji...`;
+            
+            try {
+                let response;
+                if (editId) {
+                    // Update existing
+                    response = await fetch(`/api/products/${editId}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                } else {
+                    // Create new
+                    response = await fetch('/api/products', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                }
+                
+                if (response.ok) {
+                    const savedProduct = await response.json();
+                    showToast(
+                        editId ? 'Aktualizováno' : 'Uloženo', 
+                        `Produkt "${savedProduct.name}" byl úspěšně uložen s obrázkem.`, 
+                        'success'
+                    );
+                    resetForm();
+                    fetchProducts();
+                } else {
+                    const errData = await response.json();
+                    showToast('Chyba při ukládání', errData.error || 'Neznámá chyba.', 'error');
+                }
+            } catch (err) {
+                console.error(err);
+                showToast('Chyba', 'Chyba připojení k serveru.', 'error');
+            } finally {
+                submitButton.disabled = false;
+                submitButton.innerHTML = originalBtnHtml;
+            }
+        }
+
+        // Start editing a product
+        function startEdit(id) {
+            const product = products.find(p => p.id === id);
+            if (!product) return;
+            
+            isEditing = true;
+            document.getElementById('editProductId').value = product.id;
+            document.getElementById('productName').value = product.name;
+            document.getElementById('quantity').value = product.quantity;
+            document.getElementById('imageUrl').value = product.imageUrl || '';
+            
+            selectType(product.type);
+            
+            if (product.type === 1) {
+                document.getElementById('searchTerm').value = product.searchTerm;
+            } else {
+                document.getElementById('productId').value = product.productId;
+            }
+            
+            document.getElementById('formPanelTitle').innerHTML = `<i class="fa-solid fa-pen-to-square"></i> Upravit šablonu`;
+            document.getElementById('submitBtn').innerHTML = `<i class="fa-solid fa-check"></i> Uložit změny`;
+            document.getElementById('cancelEditBtn').style.display = 'block';
+            
+            // Scroll form into view
+            document.getElementById('productForm').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Reset form to default Add state
+        function resetForm() {
+            isEditing = false;
+            document.getElementById('editProductId').value = '';
+            document.getElementById('productForm').reset();
+            document.getElementById('quantity').value = '1';
+            
+            selectType(1); // Default type Z historie
+            
+            document.getElementById('formPanelTitle').innerHTML = `<i class="fa-solid fa-circle-plus"></i> Nová šablona nákupu`;
+            document.getElementById('submitBtn').innerHTML = `<i class="fa-solid fa-save"></i> Uložit šablonu`;
+            document.getElementById('cancelEditBtn').style.display = 'none';
+        }
+
+        // Delete product item
+        async function deleteProduct(id) {
+            if (!confirm('Opravdu chcete tuto šablonu smazat?')) return;
+            
+            try {
+                const response = await fetch(`/api/products/${id}`, {
+                    method: 'DELETE'
+                });
+                
+                if (response.ok) {
+                    showToast('Smazáno', 'Šablona byla smazána.', 'success');
+                    if (isEditing && document.getElementById('editProductId').value === id) {
+                        resetForm();
+                    }
+                    fetchProducts();
+                } else {
+                    showToast('Chyba', 'Šablonu se nepodařilo smazat.', 'error');
+                }
+            } catch (err) {
+                console.error(err);
+                showToast('Chyba', 'Chyba připojení k serveru.', 'error');
+            }
+        }
+
+        async function fetchShoppingLists() {
+            try {
+                const response = await fetch('/api/shopping-lists');
+                const data = await response.json();
+                if (data.success && data.lists) {
+                    shoppingLists = data.lists;
+                    activeListId = data.active_shopping_list_id;
+                    
+                    const select = document.getElementById('activeListSelect');
+                    select.innerHTML = '<option value="">-- Vyberte seznam --</option>';
+                    
+                    shoppingLists.forEach(lst => {
+                        const opt = document.createElement('option');
+                        opt.value = lst.id;
+                        opt.textContent = lst.name;
+                        if (String(lst.id) === String(activeListId)) {
+                            opt.selected = true;
+                        }
+                        select.appendChild(opt);
+                    });
+                    
+                    document.getElementById('activeListNameInput').value = data.active_shopping_list_name || '';
+                }
+            } catch (err) {
+                console.error("Failed to load shopping lists:", err);
+            }
+        }
+
+        async function changeActiveShoppingList() {
+            const select = document.getElementById('activeListSelect');
+            const newId = select.value;
+            if (!newId) return;
+            
+            const selectedText = select.options[select.selectedIndex].text;
+            
+            try {
+                const response = await fetch('/api/shopping-lists/active', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        active_shopping_list_id: newId,
+                        active_shopping_list_name: selectedText
+                    })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    document.getElementById('activeListNameInput').value = data.active_shopping_list_name || selectedText;
+                    showToast('Seznam uložen', 'Aktivní nákupní seznam byl změněn.', 'success');
+                } else {
+                    showToast('Chyba', 'Nepodařilo se změnit nákupní seznam.', 'error');
+                }
+            } catch (err) {
+                console.error(err);
+                showToast('Chyba', 'Chyba připojení při změně seznamu.', 'error');
+            }
+        }
+
+        async function changeActiveShoppingListName() {
+            const input = document.getElementById('activeListNameInput');
+            const newName = input.value.trim();
+            if (!newName) return;
+            
+            try {
+                const response = await fetch('/api/shopping-lists/active', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ active_shopping_list_name: newName })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    if (data.active_shopping_list_id) {
+                        document.getElementById('activeListSelect').value = data.active_shopping_list_id;
+                    } else {
+                        document.getElementById('activeListSelect').value = "";
+                    }
+                    if (data.warning) {
+                        showToast('Upozornění', data.warning, 'info', 7000);
+                    } else {
+                        showToast('Seznam uložen', `Aktivní nákupní seznam byl změněn na "${data.active_shopping_list_name}".`, 'success');
+                    }
+                } else {
+                    showToast('Chyba', 'Nepodařilo se změnit nákupní seznam.', 'error');
+                }
+            } catch (err) {
+                console.error(err);
+                showToast('Chyba', 'Chyba připojení při změně seznamu.', 'error');
+            }
+        }
+
+        // Toast notifications logic
+        function showToast(title, message, type = 'info', duration = 5000) {
+            const container = document.getElementById('toastContainer');
+            
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            
+            let iconClass = 'fa-circle-info';
+            if (type === 'success') iconClass = 'fa-circle-check';
+            if (type === 'error') iconClass = 'fa-triangle-exclamation';
+            
+            toast.innerHTML = `
+                <i class="fa-solid ${iconClass} toast-icon"></i>
+                <div class="toast-content">
+                    <div class="toast-title">${title}</div>
+                    <div class="toast-message">${message}</div>
+                </div>
+                <button class="toast-close" onclick="this.parentElement.remove()">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            `;
+            
+            container.appendChild(toast);
+            
+            // Auto remove toast after duration
+            setTimeout(() => {
+                toast.style.animation = 'slideOut 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards';
+                setTimeout(() => {
+                    toast.remove();
+                }, 300);
+            }, duration);
+        }
+    </script>
+</body>
+</html>

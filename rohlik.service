@@ -1,0 +1,15 @@
+[Unit]
+Description=Rohlík.cz MCP Cart Manager Service
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/rohlik
+ExecStart=/root/rohlik/venv/bin/python app.py
+Restart=always
+RestartSec=5
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
