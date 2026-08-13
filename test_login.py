@@ -17,11 +17,12 @@ if not email or not password:
 email = email.strip()
 password = password.strip()
 
+obs_email = email[0] + "***" + email[email.find("@")-1:] if "@" in email else "***"
+
 print(f"Loaded credentials from .env:")
-print(f"Email: {email}")
-print(f"Password length: {len(password)}")
+print(f"Email: {obs_email}")
 if manual_cookie and manual_cookie.strip():
-    print(f"Manual Cookie Override detected: {manual_cookie[:50]}...")
+    print("Manual Cookie Override detected.")
 else:
     print("No manual Cookie Override detected.")
 
