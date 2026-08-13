@@ -196,9 +196,9 @@ def get_credentials():
         return None, None
     email = email.strip()
     password = password.strip()
-    # Safe structure debug to show spaces/quotes/newlines without revealing characters
-    safe_repr = "".join(c if not c.isalnum() else "*" for c in password)
-    logger.info(f"Credentials loaded: Email='{email}', Password pattern='{safe_repr}' (len={len(password)})")
+
+    obs_email = email[0] + "***" + email[email.find("@")-1:] if "@" in email else "***"
+    logger.info(f"Credentials loaded: Email='{obs_email}'")
     return email, password
 
 def extract_products_from_json(data):
