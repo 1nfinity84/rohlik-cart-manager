@@ -1,6 +1,7 @@
 # Environments
 .env
 .session_cookies
+.oauth_tokens
 
 # Python caching
 __pycache__/

@@ -4,6 +4,10 @@ import re
 import asyncio
 import uuid
 import logging
+import time
+import base64
+import hashlib
+import secrets
 from flask import Flask, request, jsonify, render_template, send_from_directory
 from dotenv import load_dotenv
 import httpx
@@ -12,7 +16,7 @@ from mcp.client.streamable_http import streamable_http_client
 from mcp import ClientSession
 
 class BusinessLogicError(Exception):
-    """Exception raised for business logic errors (e.g., items out of stock) that should not trigger cookie retries."""
+    """Exception raised for business logic errors (e.g., items out of stock) that should not trigger cookie/OAuth retries."""
     pass
 
 def clean_availability_message(msg):
@@ -47,7 +51,151 @@ load_dotenv(os.path.join(base_dir, '.env'))
 
 PRODUCTS_FILE = os.path.join(base_dir, 'products.json')
 COOKIES_CACHE_FILE = os.path.join(base_dir, '.session_cookies')
+OAUTH_CACHE_FILE = os.path.join(base_dir, '.oauth_tokens')
 _invalid_manual_cookie = None
+
+def load_cached_oauth_tokens():
+    if os.path.exists(OAUTH_CACHE_FILE):
+        try:
+            with open(OAUTH_CACHE_FILE, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except Exception as e:
+            logger.error(f"Error loading cached OAuth tokens: {e}")
+    return None
+
+def save_cached_oauth_tokens(data):
+    try:
+        with open(OAUTH_CACHE_FILE, 'w', encoding='utf-8') as f:
+            json.dump(data, f)
+    except Exception as e:
+        logger.error(f"Error saving cached OAuth tokens: {e}")
+
+def clear_cached_oauth_tokens():
+    try:
+        if os.path.exists(OAUTH_CACHE_FILE):
+            os.remove(OAUTH_CACHE_FILE)
+            logger.info("Cleared cached OAuth tokens.")
+    except Exception as e:
+        logger.error(f"Error clearing cached OAuth tokens: {e}")
+
+def generate_pkce():
+    code_verifier = secrets.token_urlsafe(64)
+    hashed = hashlib.sha256(code_verifier.encode('utf-8')).digest()
+    code_challenge = base64.urlsafe_b64encode(hashed).decode('utf-8').rstrip('=')
+    return code_verifier, code_challenge
+
+async def get_rohlik_oauth_token(email, password, force_refresh=False):
+    """
+    Retrieves a valid OAuth 2.0 Bearer token for mcp.rohlik.cz from identity.rohlik.cz.
+    Handles token caching, automated token refresh, and PKCE authorization code flow.
+    """
+    if not force_refresh:
+        tokens = load_cached_oauth_tokens()
+        if tokens:
+            access_token = tokens.get("access_token")
+            expires_at = tokens.get("expires_at", 0)
+            if access_token and expires_at > time.time() + 60:
+                logger.info("Using cached OAuth access token.")
+                return access_token
+            
+            # Try token refresh if refresh_token and client_id exist
+            refresh_token = tokens.get("refresh_token")
+            client_id = tokens.get("client_id")
+            if refresh_token and client_id:
+                try:
+                    logger.info("Refreshing Rohlik OAuth access token...")
+                    async with httpx.AsyncClient() as client:
+                        ref_res = await client.post("https://identity.rohlik.cz/oauth2/token", data={
+                            "grant_type": "refresh_token",
+                            "client_id": client_id,
+                            "refresh_token": refresh_token
+                        }, timeout=10.0)
+                        if ref_res.status_code == 200:
+                            ref_data = ref_res.json()
+                            tokens["access_token"] = ref_data["access_token"]
+                            if "refresh_token" in ref_data:
+                                tokens["refresh_token"] = ref_data["refresh_token"]
+                            tokens["expires_at"] = time.time() + ref_data.get("expires_in", 28800)
+                            save_cached_oauth_tokens(tokens)
+                            logger.info("Successfully refreshed Rohlik OAuth access token.")
+                            return tokens["access_token"]
+                        else:
+                            logger.warning(f"OAuth token refresh failed (HTTP {ref_res.status_code}). Performing full login...")
+                except Exception as e:
+                    logger.warning(f"Error refreshing OAuth token: {e}. Performing full login...")
+
+    # Full PKCE login flow against identity.rohlik.cz
+    logger.info("Performing automated OAuth PKCE login against identity.rohlik.cz...")
+    code_verifier, code_challenge = generate_pkce()
+
+    try:
+        async with httpx.AsyncClient(follow_redirects=False, timeout=15.0) as client:
+            # 1. Dynamic Client Registration
+            reg_res = await client.post("https://identity.rohlik.cz/connect/register", json={
+                "client_name": "Rohlik Cart Manager",
+                "redirect_uris": ["http://localhost:5050/oauth/callback"],
+                "grant_types": ["authorization_code", "refresh_token"],
+                "response_types": ["code"],
+                "token_endpoint_auth_method": "none"
+            })
+            if reg_res.status_code not in (200, 201):
+                raise ValueError(f"Dynamic Client Registration failed: HTTP {reg_res.status_code} - {reg_res.text}")
+            client_id = reg_res.json().get("client_id")
+
+            # 2. Get CSRF Token from login page
+            login_page = await client.get("https://identity.rohlik.cz/login")
+            csrf_match = re.search(r'name="_csrf"\s+value="([^"]+)"', login_page.text)
+            if not csrf_match:
+                raise ValueError("Could not extract _csrf token from identity.rohlik.cz/login")
+            csrf_token = csrf_match.group(1)
+
+            # 3. Post user credentials
+            login_res = await client.post("https://identity.rohlik.cz/login", data={
+                "_csrf": csrf_token,
+                "username": email,
+                "password": password
+            }, headers={
+                "Content-Type": "application/x-www-form-urlencoded",
+                "Referer": "https://identity.rohlik.cz/login"
+            })
+            if login_res.status_code not in (200, 302):
+                raise ValueError(f"Login POST to identity.rohlik.cz failed: HTTP {login_res.status_code}")
+
+            # 4. Request Authorization Code
+            auth_res = await client.get("https://identity.rohlik.cz/oauth2/authorize", params={
+                "client_id": client_id,
+                "response_type": "code",
+                "redirect_uri": "http://localhost:5050/oauth/callback",
+                "scope": "openid email roles",
+                "code_challenge": code_challenge,
+                "code_challenge_method": "S256"
+            })
+            auth_loc = auth_res.headers.get("location", "")
+            code_match = re.search(r'code=([^&]+)', auth_loc)
+            if not code_match:
+                raise ValueError(f"Failed to obtain authorization code. Location: {auth_loc}")
+            auth_code = code_match.group(1)
+
+            # 5. Exchange code for access & refresh tokens
+            token_res = await client.post("https://identity.rohlik.cz/oauth2/token", data={
+                "grant_type": "authorization_code",
+                "client_id": client_id,
+                "code": auth_code,
+                "redirect_uri": "http://localhost:5050/oauth/callback",
+                "code_verifier": code_verifier
+            })
+            if token_res.status_code != 200:
+                raise ValueError(f"Failed to exchange auth code for token: HTTP {token_res.status_code} - {token_res.text}")
+            
+            token_data = token_res.json()
+            token_data["client_id"] = client_id
+            token_data["expires_at"] = time.time() + token_data.get("expires_in", 28800)
+            save_cached_oauth_tokens(token_data)
+            logger.info("Successfully acquired new Rohlik OAuth access token.")
+            return token_data["access_token"]
+    except Exception as e:
+        logger.error(f"Error during OAuth authentication: {e}")
+        raise
 
 def load_cached_cookies():
     if os.path.exists(COOKIES_CACHE_FILE):
@@ -336,35 +484,19 @@ async def call_rohlik_mcp_to_add(email, password, product, is_retry=False):
     url = "https://mcp.rohlik.cz/mcp"
     logger.info(f"Connecting to Rohlik MCP via Streamable HTTP for user {email} (is_retry={is_retry})")
 
-    # Fetch fresh session cookies from frontend login
-    cookie_header = await get_rohlik_session_cookies(email, password, force_refresh=is_retry)
+    # Fetch OAuth Bearer token
+    oauth_token = await get_rohlik_oauth_token(email, password, force_refresh=is_retry)
 
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Authorization": f"Bearer {oauth_token}"
     }
-    if cookie_header:
-        headers["Cookie"] = cookie_header
-        logger.info("Attached session cookies to MCP connection headers.")
-    else:
-        headers["rhl-email"] = email
-        headers["rhl-pass"] = password
-        logger.warning("Session cookie retrieval failed; falling back to raw credential headers.")
 
     async def log_request(req):
         safe_hdrs = {}
         for k, v in req.headers.items():
-            if k.lower() == "rhl-pass":
-                safe_hdrs[k] = "".join(c if not c.isalnum() else "*" for c in v)
-            elif k.lower() == "cookie":
-                # Redact cookie values for security
-                cookies = []
-                for cookie in v.split(";"):
-                    parts = cookie.split("=")
-                    if len(parts) == 2:
-                        cookies.append(f"{parts[0].strip()}=*********")
-                    else:
-                        cookies.append("*********")
-                safe_hdrs[k] = "; ".join(cookies)
+            if k.lower() == "authorization":
+                safe_hdrs[k] = "Bearer eyJhbGci..."
             else:
                 safe_hdrs[k] = v
         logger.info(f"HTTP Outgoing Request: {req.method} {req.url} - Headers: {safe_hdrs}")
@@ -513,8 +645,8 @@ async def call_rohlik_mcp_to_add(email, password, product, is_retry=False):
         if isinstance(orig_e, BusinessLogicError):
             raise orig_e
         if not is_retry:
-            logger.warning(f"MCP connection/add failed ({e}). Retrying with fresh cookies...")
-            clear_cached_cookies(cookie_header)
+            logger.warning(f"MCP connection/add failed ({orig_e}). Retrying with fresh OAuth token...")
+            clear_cached_oauth_tokens()
             return await call_rohlik_mcp_to_add(email, password, product, is_retry=True)
         raise orig_e
 
@@ -764,16 +896,12 @@ def parse_cart_data(cart_text):
 
 async def call_rohlik_mcp_to_get_cart(email, password, is_retry=False):
     url = "https://mcp.rohlik.cz/mcp"
-    cookie_header = await get_rohlik_session_cookies(email, password, force_refresh=is_retry)
+    oauth_token = await get_rohlik_oauth_token(email, password, force_refresh=is_retry)
 
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Authorization": f"Bearer {oauth_token}"
     }
-    if cookie_header:
-        headers["Cookie"] = cookie_header
-    else:
-        headers["rhl-email"] = email
-        headers["rhl-pass"] = password
 
     try:
         async with AsyncExitStack() as stack:
@@ -803,8 +931,8 @@ async def call_rohlik_mcp_to_get_cart(email, password, is_retry=False):
                 return cart_text
     except Exception as e:
         if not is_retry:
-            logger.warning(f"MCP connection/get_cart failed ({e}). Retrying with fresh cookies...")
-            clear_cached_cookies(cookie_header)
+            logger.warning(f"MCP connection/get_cart failed ({e}). Retrying with fresh OAuth token...")
+            clear_cached_oauth_tokens()
             return await call_rohlik_mcp_to_get_cart(email, password, is_retry=True)
         raise
 
@@ -830,16 +958,12 @@ def save_config(config_data):
 
 async def fetch_rohlik_shopping_lists(email, password, is_retry=False):
     url = "https://mcp.rohlik.cz/mcp"
-    cookie_header = await get_rohlik_session_cookies(email, password, force_refresh=is_retry)
+    oauth_token = await get_rohlik_oauth_token(email, password, force_refresh=is_retry)
 
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Authorization": f"Bearer {oauth_token}"
     }
-    if cookie_header:
-        headers["Cookie"] = cookie_header
-    else:
-        headers["rhl-email"] = email
-        headers["rhl-pass"] = password
 
     try:
         async with AsyncExitStack() as stack:
@@ -864,8 +988,8 @@ async def fetch_rohlik_shopping_lists(email, password, is_retry=False):
                 return data.get("data", []) or []
     except Exception as e:
         if not is_retry:
-            logger.warning(f"MCP shopping lists preview failed ({e}). Retrying with fresh cookies...")
-            clear_cached_cookies(cookie_header)
+            logger.warning(f"MCP shopping lists preview failed ({e}). Retrying with fresh OAuth token...")
+            clear_cached_oauth_tokens()
             return await fetch_rohlik_shopping_lists(email, password, is_retry=True)
         logger.error(f"Error fetching shopping lists preview: {e}")
         return []
@@ -903,16 +1027,12 @@ async def fetch_product_images_async(product_ids):
 
 async def fetch_rohlik_shopping_list_detail(email, password, list_id, is_retry=False):
     url = "https://mcp.rohlik.cz/mcp"
-    cookie_header = await get_rohlik_session_cookies(email, password, force_refresh=is_retry)
+    oauth_token = await get_rohlik_oauth_token(email, password, force_refresh=is_retry)
 
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Authorization": f"Bearer {oauth_token}"
     }
-    if cookie_header:
-        headers["Cookie"] = cookie_header
-    else:
-        headers["rhl-email"] = email
-        headers["rhl-pass"] = password
 
     try:
         async with AsyncExitStack() as stack:
@@ -992,8 +1112,8 @@ async def fetch_rohlik_shopping_list_detail(email, password, list_id, is_retry=F
                 }
     except Exception as e:
         if not is_retry:
-            logger.warning(f"MCP shopping list detail failed ({e}). Retrying with fresh cookies...")
-            clear_cached_cookies(cookie_header)
+            logger.warning(f"MCP shopping list detail failed ({e}). Retrying with fresh OAuth token...")
+            clear_cached_oauth_tokens()
             return await fetch_rohlik_shopping_list_detail(email, password, list_id, is_retry=True)
         logger.error(f"Error fetching shopping list detail: {e}")
         return {"name": "Error Loading List", "products": []}
